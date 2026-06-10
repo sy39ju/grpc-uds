@@ -1,0 +1,23 @@
+[package]
+name = "protoc-gen-grpcudspp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "protoc plugin that emits gRPC C++-style service stubs targeting the grpcudspp wrapper + nanopb."
+readme = "README.md"
+keywords = ["grpc", "protoc", "protobuf", "codegen", "nanopb"]
+categories = ["development-tools", "network-programming"]
+
+[[bin]]
+name = "protoc-gen-grpcudspp"
+path = "src/main.rs"
+
+[dependencies]
+protobuf = "3"
+
+[package.metadata.docs.rs]
+# UDS + system libnghttp2: Linux-only by design.
+targets = ["x86_64-unknown-linux-gnu", "armv7-unknown-linux-gnueabihf"]

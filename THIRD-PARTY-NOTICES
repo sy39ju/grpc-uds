@@ -1,0 +1,37 @@
+THIRD-PARTY NOTICES
+===================
+
+This project (grpcuds) is dual-licensed under MIT OR Apache-2.0 (see LICENSE-MIT / LICENSE-APACHE).
+It includes and/or links the following third-party components.
+
+-------------------------------------------------------------------------------
+nghttp2 — HTTP/2 C Library
+-------------------------------------------------------------------------------
+Used by: dynamic link to the system libnghttp2 at runtime (headers resolved
+from the same sysroot), and a pinned source subset vendored as the
+`rust/grpcuds-sys/vendor/nghttp2-src/` submodule for the opt-in `bundled`
+static build (also the docs.rs bindgen source).
+
+License: MIT
+Copyright (c) 2012, 2013, 2014 Tatsuhiro Tsujikawa
+Copyright (c) 2012, 2013, 2014 nghttp2 contributors
+Project: https://nghttp2.org/
+
+  Permission is hereby granted, free of charge, to any person obtaining
+  a copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to
+  the following conditions:
+
+  The above copyright notice and this permission notice shall be
+  included in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

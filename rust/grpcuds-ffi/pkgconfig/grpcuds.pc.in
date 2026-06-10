@@ -1,0 +1,24 @@
+# pkg-config template for the grpcuds C ABI runtime (libgrpcuds_ffi).
+#
+# Placeholders (@...@) are filled by scripts/gen-pkgconfig.sh, which writes a
+# concrete grpcuds.pc for an install prefix. Two link modes are encoded:
+#
+#   * default (dynamic): nghttp2 is a runtime shared-lib dependency, surfaced
+#     as a Requires.private on libnghttp2 (the system libnghttp2 ships its own
+#     libnghttp2.pc); the nghttp2 libs slot stays empty.
+#   * bundled (static):  nghttp2 was built from the pinned submodule and its
+#     objects are folded into libgrpcuds_ffi.{a,so} itself (cargo bundles
+#     static native libs into staticlib/cdylib outputs) — both slots empty.
+prefix=@PREFIX@
+exec_prefix=${prefix}
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@
+
+Name: grpcuds
+Description: gRPC-over-UDS server transport (C ABI), wire-compatible with stock gRPC clients
+URL: https://github.com/sy39ju/grpc-uds
+Version: @VERSION@
+Requires.private:@NGHTTP2_REQUIRES@
+Cflags: -I${includedir}
+Libs: -L${libdir} -lgrpcuds_ffi
+Libs.private:@NGHTTP2_LIBS@ -lpthread -ldl -lm

@@ -1,0 +1,5 @@
+# Build outputs of the test trees. tests/rust + tests/rust/sizebench are
+# their own cargo workspaces (rust/.gitignore does not reach here), and
+# tests/cpp builds in-tree in CI.
+target/
+build/

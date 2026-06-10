@@ -1,0 +1,8 @@
+# nanopb options for ble.proto. Pins variable-length fields (strings,
+# bytes) to fixed-size buffers so server-side handlers can use plain
+# struct assignment instead of nanopb callbacks.
+
+ble.ScanResult.mac          max_size:18
+ble.ScanResult.adv_data     max_size:64
+
+ble.ScanFilter.mac_prefix   max_size:18

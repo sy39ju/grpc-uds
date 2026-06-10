@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// C++-only view of agent.proto: the `Agent` model runtime WITHOUT the
+// `Assistant` loop (whose AgentEvent oneof nanopb/grpcudspp can't render as
+// plain structs). Same package + field numbers as agent.proto, so it is
+// wire-identical — a C++ peer built from this talks to a Rust peer built from
+// agent.proto and vice versa. The C++ examples never use the Assistant loop.
+syntax = "proto3";
+
+package agent;
+
+service Agent {
+  rpc ListModels(ListModelsRequest) returns (ModelList);
+  rpc Generate(GenerateRequest) returns (stream Token);
+  rpc Embed(EmbedRequest) returns (Embedding);
+}
+
+message ListModelsRequest {}
+
+message Model {
+  string name = 1;
+  uint32 context_len = 2;
+}
+
+message ModelList {
+  repeated Model models = 1;
+}
+
+message GenerateRequest {
+  string model = 1;
+  string prompt = 2;
+  uint32 max_tokens = 3;
+}
+
+message Token {
+  uint32 index = 1;
+  string text = 2;
+}
+
+message EmbedRequest {
+  string text = 1;
+}
+
+message Embedding {
+  repeated float values = 1;
+}

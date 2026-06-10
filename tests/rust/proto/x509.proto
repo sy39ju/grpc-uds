@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Local certificate agent: the kind of daemon a device exposes over UDS so
+// other processes can provision/inspect identity material without linking
+// a TLS stack themselves.
+syntax = "proto3";
+
+package x509;
+
+service X509 {
+  // Generate a fresh self-signed certificate + private key (PEM).
+  rpc GenerateSelfSigned(GenerateSelfSignedRequest) returns (KeyPairPem);
+
+  // Parse a PEM certificate and return its salient fields.
+  rpc Inspect(PemCert) returns (CertInfo);
+
+  // Hash the certificate's DER encoding.
+  rpc Fingerprint(FingerprintRequest) returns (FingerprintReply);
+
+  // Batch expiry check: one status per input certificate, streamed as
+  // they are evaluated.
+  rpc CheckExpiry(CheckExpiryRequest) returns (stream ExpiryStatus);
+}
+
+message GenerateSelfSignedRequest {
+  string common_name = 1;
+  repeated string subject_alt_names = 2;  // DNS names
+  uint32 validity_days = 3;               // 0 -> 365
+}
+
+message KeyPairPem {
+  string cert_pem = 1;
+  string key_pem = 2;
+}
+
+message PemCert {
+  string pem = 1;
+}
+
+message CertInfo {
+  string subject = 1;
+  string issuer = 2;
+  string serial_hex = 3;
+  int64 not_before_unix = 4;
+  int64 not_after_unix = 5;
+  repeated string subject_alt_names = 6;
+  bool is_ca = 7;
+}
+
+enum HashAlgo {
+  HASH_ALGO_UNSPECIFIED = 0;
+  HASH_ALGO_SHA256 = 1;
+  HASH_ALGO_SHA512 = 2;
+}
+
+message FingerprintRequest {
+  string pem = 1;
+  HashAlgo algo = 2;  // UNSPECIFIED -> SHA256
+}
+
+message FingerprintReply {
+  string hex = 1;  // lowercase, colon-free
+}
+
+message CheckExpiryRequest {
+  repeated string pems = 1;
+  int64 now_unix = 2;  // 0 -> server clock
+}
+
+message ExpiryStatus {
+  uint32 index = 1;
+  string subject = 2;
+  int64 not_after_unix = 3;
+  int64 seconds_remaining = 4;  // negative if expired
+  bool expired = 5;
+}

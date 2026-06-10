@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// BLE service exposed by the grpcuds server.
+// Shared by:
+//   - tonic-build (Rust client)
+//   - nanopb_generator (server message types)
+//   - protoc-gen-grpcudspp (server service stubs)
+
+syntax = "proto3";
+
+package ble;
+
+// ---- Init / lifecycle ----------------------------------------------------
+
+message InitRequest {}
+
+message InitReply {
+    bool ok = 1;
+}
+
+// ---- LE scan -------------------------------------------------------------
+
+message StartLeScanRequest {
+    uint32 duration_ms = 1;  // 0 = until StopLeScan
+}
+message StartLeScanReply {
+    bool ok = 1;
+}
+
+message StopLeScanRequest {}
+message StopLeScanReply {
+    bool ok = 1;
+}
+
+message ScanResultStreamRequest {}
+
+message ScanResult {
+    string mac = 1;        // 17-char "AA:BB:CC:DD:EE:FF"
+    int32 rssi = 2;        // dBm
+    bytes adv_data = 3;
+}
+
+// ---- Adapter state stream ------------------------------------------------
+
+message AdapterStateChangeStreamRequest {}
+
+message AdapterStateChange {
+    enum State {
+        OFF = 0;
+        ON = 1;
+    }
+    State new_state = 1;
+}
+
+// ---- Scan filters --------------------------------------------------------
+
+message ScanFilter {
+    string mac_prefix = 1;
+    int32 rssi_threshold = 2;
+}
+message AddScanFilterRequest {
+    ScanFilter filter = 1;
+}
+message AddScanFilterReply {
+    uint32 filter_id = 1;
+}
+message RemoveScanFilterRequest {
+    uint32 filter_id = 1;
+}
+message RemoveScanFilterReply {
+    bool ok = 1;
+}
+
+// ---- Service -------------------------------------------------------------
+
+service BleService {
+    rpc Init(InitRequest) returns (InitReply);
+    rpc StartLeScan(StartLeScanRequest) returns (StartLeScanReply);
+    rpc StopLeScan(StopLeScanRequest) returns (StopLeScanReply);
+    rpc ScanResultStream(ScanResultStreamRequest) returns (stream ScanResult);
+    rpc AdapterStateChangeStream(AdapterStateChangeStreamRequest)
+        returns (stream AdapterStateChange);
+    rpc AddScanFilter(AddScanFilterRequest) returns (AddScanFilterReply);
+    rpc RemoveScanFilter(RemoveScanFilterRequest) returns (RemoveScanFilterReply);
+}

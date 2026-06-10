@@ -1,0 +1,6 @@
+[submodule "nghttp2-src"]
+	path = rust/grpcuds-sys/vendor/nghttp2-src
+	url = https://github.com/nghttp2/nghttp2.git
+[submodule "nanopb"]
+	path = example/nanopb
+	url = https://github.com/nanopb/nanopb.git

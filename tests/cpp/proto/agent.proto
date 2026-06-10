@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// On-device AI agent: a local model runtime exposing token streaming over
+// UDS — server-streaming is the natural shape for LLM generation, and
+// client-side stream drops exercise grpcuds's cancellation feedback.
+syntax = "proto3";
+
+package agent;
+
+service Agent {
+  // Models this runtime can serve.
+  rpc ListModels(ListModelsRequest) returns (ModelList);
+
+  // Stream generated tokens until done or the client goes away.
+  rpc Generate(GenerateRequest) returns (stream Token);
+
+  // Deterministic toy embedding for a text.
+  rpc Embed(EmbedRequest) returns (Embedding);
+}
+
+message ListModelsRequest {}
+
+message Model {
+  string name = 1;
+  uint32 context_len = 2;
+}
+
+message ModelList {
+  repeated Model models = 1;
+}
+
+message GenerateRequest {
+  string model = 1;
+  string prompt = 2;
+  uint32 max_tokens = 3;  // 0 -> 32
+}
+
+message Token {
+  uint32 index = 1;
+  string text = 2;
+}
+
+message EmbedRequest {
+  string text = 1;
+}
+
+message Embedding {
+  repeated float values = 1;
+}
+
+// ---- Agent loop ------------------------------------------------------------
+// The *agent* proper (vs. the bare model runtime above): the server owns the
+// loop — model calls, tool execution, history — and streams events; the
+// client is a thin UI that renders them.
+
+service Assistant {
+  // Run one task to completion: the server iterates model <-> tools until
+  // the model stops, streaming every step as it happens.
+  rpc Run(RunRequest) returns (stream AgentEvent);
+}
+
+message RunRequest {
+  string prompt = 1;
+  uint32 max_turns = 2;  // tool-use round trips; 0 -> 8
+  string model = 3;      // empty -> server default
+}
+
+message ToolUse {
+  string id = 1;
+  string name = 2;
+  string input_json = 3;
+}
+
+message ToolResult {
+  string tool_use_id = 1;
+  string output = 2;
+}
+
+message Done {
+  string stop_reason = 1;  // end_turn | max_turns | error
+  uint32 turns = 2;
+}
+
+message AgentEvent {
+  oneof event {
+    string text = 1;            // an assistant text block
+    ToolUse tool_use = 2;       // the model invoked a tool
+    ToolResult tool_result = 3; // what the server fed back
+    Done done = 4;              // loop finished
+  }
+}

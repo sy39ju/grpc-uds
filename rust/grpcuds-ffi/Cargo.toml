@@ -1,0 +1,40 @@
+[package]
+name = "grpcuds-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "C ABI surface (grpcuds_*) for the core library: cdylib + staticlib."
+readme = "README.md"
+keywords = ["grpc", "uds", "ffi", "http2", "cdylib"]
+categories = ["network-programming", "external-ffi-bindings"]
+# Emits only staticlib/cdylib (no rlib) → not consumable as a crates.io
+# dependency. The C-ABI artifacts ship as compiled .a/.so, not via cargo.
+publish = false
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+# This crate exists only to produce the cdylib/staticlib output; it has
+# no library API of its own. Tests live in `grpcuds-ffi-impl`.
+test = false
+doctest = false
+
+[features]
+default = ["server"]
+# Which C ABI surfaces the produced .a/.so exports. Server-only is the default
+# (unchanged); a client-only build drops all server symbols, and vice versa,
+# so an embedder links only the side it uses.
+server = ["grpcuds-core/server", "grpcuds-ffi-impl/server"]
+client = ["grpcuds-core/client", "grpcuds-ffi-impl/client"]
+# Build & statically link libnghttp2 from the pinned submodule (opt-in). With
+# this on, the produced .a/.so embeds nghttp2 and needs no system libnghttp2.
+bundled = ["grpcuds-core/bundled", "grpcuds-ffi-impl/bundled"]
+# Dev-only Wireshark wire logging (see grpcuds-core); GRPCUDS_WIRELOG=<path>
+# activates it at runtime. Never ship a production .a with this on.
+wirelog = ["grpcuds-core/wirelog", "grpcuds-ffi-impl/wirelog"]
+
+[dependencies]
+grpcuds-core = { path = "../grpcuds-core", version = "0.1.0", default-features = false }
+grpcuds-ffi-impl = { path = "../grpcuds-ffi-impl", version = "0.1.0", default-features = false }

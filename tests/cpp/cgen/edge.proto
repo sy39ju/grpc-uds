@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Emitter edge shapes, compiled with -Wall -Wextra -Werror: NO package,
+// two services, a nested message type, req == resp, the same RPC name in
+// two services. Scalar-only fields so no .options file is needed.
+syntax = "proto3";
+
+message Ping {
+  int32 n = 1;
+  message Inner {
+    int32 v = 1;
+  }
+}
+
+message Pong {
+  int32 n = 1;
+}
+
+service First {
+  rpc Echo(Ping) returns (Ping);              // req == resp
+  rpc Nested(Ping.Inner) returns (Ping);      // nested message type
+  rpc Watch(Ping) returns (stream Pong);
+}
+
+service Second {
+  rpc Echo(Pong) returns (Pong);              // same RPC name, other service
+}

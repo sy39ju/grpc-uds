@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+[package]
+name = "ble-domain"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "BLE domain logic shared by the ble-gg/gt/tg example cells: a grpcuds server impl + a tonic server impl + tonic client + fixtures."
+
+[lib]
+
+[dependencies]
+grpcuds = { workspace = true, features = ["prost", "client"] }
+prost.workspace = true
+tonic.workspace = true
+tonic-prost.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+uds-harness.workspace = true
+
+[build-dependencies]
+grpcuds-build.workspace = true
+tonic-prost-build.workspace = true

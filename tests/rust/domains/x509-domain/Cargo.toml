@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+[package]
+name = "x509-domain"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "X.509 domain logic shared by the x509-gg/gt/tg cells: a real grpcuds certificate agent (rcgen/x509-parser) + a deterministic tonic mock server."
+
+[lib]
+
+[dependencies]
+grpcuds = { workspace = true, features = ["prost", "client"] }
+prost.workspace = true
+tonic.workspace = true
+tonic-prost.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+uds-harness.workspace = true
+rcgen.workspace = true
+x509-parser.workspace = true
+sha2.workspace = true
+time.workspace = true
+
+[build-dependencies]
+grpcuds-build.workspace = true
+tonic-prost-build.workspace = true

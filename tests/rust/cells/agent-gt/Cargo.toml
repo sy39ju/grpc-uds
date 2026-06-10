@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+[package]
+name = "agent-gt"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "AI-agent interop cell: grpcuds server + tonic (stock gRPC) client over UDS. `cargo run` = live ollama demo (forward)."
+
+[dependencies]
+agent-domain.workspace = true
+uds-harness.workspace = true
+tonic.workspace = true
+tokio.workspace = true

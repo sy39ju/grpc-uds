@@ -1,0 +1,46 @@
+# Doxygen config for the grpcuds C++ API (cpp/include/grpcudspp/).
+# Generate with:  doxygen Doxyfile   ->  docs/doxygen/html/index.html
+#
+# This produces a browsable symbol reference. The narrative landing page is
+# docs/CPP_API_GUIDE.md (set as the main page below); the headers are short and
+# heavily commented and remain the source of truth for exact signatures.
+
+# --- Project ---------------------------------------------------------------
+PROJECT_NAME           = "grpcuds C++ API"
+PROJECT_BRIEF          = "Header-only C++ wrapper over the grpcuds UDS transport"
+OUTPUT_DIRECTORY       = docs/doxygen
+QUIET                  = YES
+
+# --- Inputs ----------------------------------------------------------------
+INPUT                  = cpp/include/grpcudspp \
+                         docs/CPP_API_GUIDE.md
+FILE_PATTERNS          = *.h
+RECURSIVE              = YES
+STRIP_FROM_PATH        = cpp/include
+USE_MDFILE_AS_MAINPAGE = docs/CPP_API_GUIDE.md
+
+# --- Extraction ------------------------------------------------------------
+# EXTRACT_ALL lists every class/struct/method even where the comment style is
+# plain // (not a Doxygen /// or /** */ comment), so the reference is complete.
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+EXTRACT_PRIVATE        = NO
+JAVADOC_AUTOBRIEF      = YES
+MARKDOWN_SUPPORT       = YES
+OPTIMIZE_OUTPUT_FOR_C  = NO
+WARN_IF_UNDOCUMENTED   = NO
+
+# --- Preprocessing ---------------------------------------------------------
+# Define the nanopb guard so the typed client API (Client::Unary /
+# ServerStreaming, ClientReader) behind `#ifdef GRPCUDSPP_HAVE_NANOPB` is
+# extracted, not skipped.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+PREDEFINED             = GRPCUDSPP_HAVE_NANOPB=1
+
+# --- Output ----------------------------------------------------------------
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+SOURCE_BROWSER         = YES
+ALPHABETICAL_INDEX     = YES

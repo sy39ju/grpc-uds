@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# The grpcuds examples workspace — separate from the strict no_std lib
+# workspace (../Cargo.toml, which `exclude`s this dir). Relaxed profiles +
+# heavy deps (tonic/tokio) live only here.
+[workspace]
+resolver = "2"
+members = [
+    "shared/uds-harness",
+    "domains/ble-domain",
+    "domains/agent-domain",
+    "domains/x509-domain",
+    "cells/ble-gg",
+    "cells/ble-gt",
+    "cells/ble-tg",
+    "cells/agent-gg",
+    "cells/agent-gt",
+    "cells/agent-tg",
+    "cells/x509-gg",
+    "cells/x509-gt",
+    "cells/x509-tg",
+    "cross",
+]
+# sizebench is its own workspace (aggressive size profile for measurement).
+exclude = ["sizebench"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+# In-repo libraries (path-deps up into the lib workspace).
+grpcuds = { path = "../../rust/grpcuds" }
+grpcuds-build = { path = "../../rust/grpcuds-build" }
+# Domain libs + harness (referenced by cells/peers/cross).
+ble-domain = { path = "domains/ble-domain" }
+agent-domain = { path = "domains/agent-domain" }
+x509-domain = { path = "domains/x509-domain" }
+uds-harness = { path = "shared/uds-harness" }
+# One tonic/prost stack everywhere.
+tonic = { version = "0.14", default-features = false, features = ["codegen", "transport", "server", "router", "channel"] }
+tonic-health = "0.14"
+tonic-prost = "0.14"
+tonic-prost-build = "0.14"
+prost = "0.14"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+tower = { version = "0.5", default-features = false, features = ["util"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+# Domain-specific.
+serde_json = "1"
+ureq = { version = "2", features = ["json"] }
+rcgen = "0.14"
+x509-parser = "0.18"
+sha2 = "0.11"
+# time 0.3.42+ adds an internal impl that trips an E0119 coherence error against
+# rcgen's blanket `From<T: Into<String>>` on recent rustc; cap below it until the
+# rcgen/time ecosystem catches up. (Test-only dep — x509 cert validity dates.)
+time = ">=0.3.6, <0.3.42"
+
+# Examples want normal builds (unwind for test asserts), independent of the
+# lib workspace's panic=abort/opt-level=z.
+[profile.dev]
+panic = "unwind"
+
+[profile.release]
+panic = "unwind"

@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// A BLE central exposed over gRPC: adapter init, advert scanning
+// (server-streaming), and a GATT characteristic read. The server simulates
+// the radio — swap the device table for your platform's BLE API and the
+// contract stays the same.
+syntax = "proto3";
+
+package ble;
+
+service BleScanner {
+  // Power on the adapter.
+  rpc Init(InitRequest) returns (InitReply);
+
+  // Start advert scanning; results flow on ScanResultStream.
+  rpc StartLeScan(StartLeScanRequest) returns (StartLeScanReply);
+
+  // One message per received advertisement, until the scan stops.
+  rpc ScanResultStream(ScanResultStreamRequest) returns (stream ScanResult);
+
+  // Stop scanning; the open ScanResultStream finishes with OK.
+  rpc StopLeScan(StopLeScanRequest) returns (StopLeScanReply);
+
+  // GATT read from a previously scanned device.
+  rpc ReadCharacteristic(ReadCharacteristicRequest)
+      returns (ReadCharacteristicReply);
+}
+
+message InitRequest {}
+message InitReply {
+  bool ok = 1;
+  string adapter = 2;  // e.g. "hci0"
+}
+
+message StartLeScanRequest {
+  // Drop adverts weaker than this (dBm). 0 = no filter.
+  int32 min_rssi = 1;
+}
+message StartLeScanReply {
+  bool ok = 1;
+}
+
+message ScanResultStreamRequest {}
+message ScanResult {
+  string mac = 1;       // "AA:BB:CC:DD:EE:FF"
+  int32 rssi = 2;       // dBm, negative
+  string name = 3;      // advertised local name ("" if none)
+  bytes adv_data = 4;   // raw advertisement payload
+}
+
+message StopLeScanRequest {}
+message StopLeScanReply {
+  uint32 adverts_seen = 1;
+}
+
+message ReadCharacteristicRequest {
+  string mac = 1;
+  string uuid = 2;      // 16-bit short form, e.g. "2a19" (battery level)
+}
+message ReadCharacteristicReply {
+  bytes value = 1;
+}

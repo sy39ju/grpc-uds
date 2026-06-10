@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Apple-to-apple size/PSS comparison: single-role grpcuds vs tonic binaries
+# for the domains whose two transports run identical logic (BLE, AI agent).
+# Standalone workspace with an aggressive size profile applied equally to both
+# transports, so the numbers are directly comparable.
+[package]
+name = "sizebench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+ble-domain = { path = "../domains/ble-domain" }
+agent-domain = { path = "../domains/agent-domain" }
+grpcuds = { path = "../../../rust/grpcuds", features = ["client", "prost"] }
+uds-harness = { path = "../shared/uds-harness" }
+tonic = { version = "0.14", default-features = false, features = ["codegen", "transport", "server", "router", "channel"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
+
+[[bin]]
+name = "ble-grpcuds-server"
+path = "src/ble_grpcuds_server.rs"
+[[bin]]
+name = "ble-tonic-server"
+path = "src/ble_tonic_server.rs"
+[[bin]]
+name = "ble-grpcuds-client"
+path = "src/ble_grpcuds_client.rs"
+
+[[bin]]
+name = "ble-grpcuds-client-stub"
+path = "src/ble_grpcuds_client_stub.rs"
+[[bin]]
+name = "ble-tonic-client"
+path = "src/ble_tonic_client.rs"
+[[bin]]
+name = "agent-grpcuds-server"
+path = "src/agent_grpcuds_server.rs"
+[[bin]]
+name = "agent-tonic-server"
+path = "src/agent_tonic_server.rs"
+[[bin]]
+name = "agent-grpcuds-client"
+path = "src/agent_grpcuds_client.rs"
+[[bin]]
+name = "agent-tonic-client"
+path = "src/agent_tonic_client.rs"
+
+# Identical aggressive size profile for grpcuds AND tonic binaries — fair.
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

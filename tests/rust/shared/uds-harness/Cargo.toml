@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+[package]
+name = "uds-harness"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "Test/demo plumbing shared by the grpcuds example matrix: UDS socket helpers, a tonic-over-UDS connector, and a spawn-and-skip harness for driving the C++ example binaries."
+
+[dependencies]
+tonic.workspace = true
+tower.workspace = true
+hyper-util.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true

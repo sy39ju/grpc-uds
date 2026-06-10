@@ -1,0 +1,388 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Fast hygiene gates: rustfmt drift and clippy (warnings are errors).
+  lint:
+    name: fmt + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install apt deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnghttp2-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: cargo fmt --check
+        working-directory: rust
+        run: cargo fmt --check
+      - name: cargo clippy (deny warnings)
+        working-directory: rust
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  # The declared rust-version must actually build the publishable crates.
+  msrv:
+    name: MSRV (1.85)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install apt deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnghttp2-dev
+      - uses: dtolnay/rust-toolchain@1.85
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: cargo check (publishable crates)
+        working-directory: rust
+        run: cargo check --all-features -p grpcuds-sys -p grpcuds-core -p grpcuds -p grpcuds-build -p protoc-gen-grpcudspp
+
+  # License / advisory / bans / sources gate over the publishable workspace.
+  # Same policy release.sh enforces (rust/deny.toml) — failing here instead
+  # of at publish time.
+  deny:
+    name: cargo deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: rust/Cargo.toml
+          command: check licenses bans sources advisories
+
+  test:
+    name: Build + test (ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install apt deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              libnghttp2-dev \
+              protobuf-compiler \
+              cmake \
+              build-essential \
+              python3-pip \
+              libgrpc++-dev \
+              protobuf-compiler-grpc \
+              libprotobuf-dev
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            rust
+            tests/rust
+            tests/rust/sizebench
+
+      # nanopb generator + runtime come from ONE pinned submodule, so the
+      # codegen tool and the pb_*.c runtime cannot drift. The in-tree generator
+      # only needs the python `protobuf` runtime (it bootstraps its bindings via
+      # the system protoc installed above).
+      - name: Init nanopb submodule
+        run: git submodule update --init example/nanopb
+
+      - name: Install nanopb generator python deps
+        run: pip3 install --user --break-system-packages protobuf
+
+      # ---- Rust workspace -------------------------------------------------
+      - name: cargo build (workspace)
+        working-directory: rust
+        run: cargo build --workspace --all-targets
+
+      - name: cargo test (workspace)
+        working-directory: rust
+        run: cargo test --workspace
+
+      - name: cargo test (workspace, all features incl. bundled/tokio/prost)
+        working-directory: rust
+        run: cargo test --workspace --all-features
+
+      # Feature-shape guard: the halves must build ALONE (a misplaced cfg
+      # gate once broke client-only and no other lane could see it).
+      - name: cargo check (client-only / server-only shapes)
+        working-directory: rust
+        run: |
+          cargo check -p grpcuds -p grpcuds-ffi -p grpcuds-core --no-default-features --features client
+          cargo check -p grpcuds -p grpcuds-ffi -p grpcuds-core --no-default-features --features server
+
+      - name: cargo doc (warnings as errors)
+        working-directory: rust
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo doc --no-deps --workspace --all-features
+
+      # ---- Release artifacts the C++ side links against ------------------
+      - name: cargo build --release (grpcuds-ffi + plugin)
+        working-directory: rust
+        run: |
+          cargo build --release -p grpcuds-ffi --features client
+          cargo build --release -p protoc-gen-grpcudspp
+
+      # ---- C++ wrapper smoke test ----------------------------------------
+      - name: cmake build + ctest (cpp/)
+        run: |
+          cmake -S cpp -B cpp/build
+          cmake --build cpp/build --parallel
+          ctest --test-dir cpp/build --output-on-failure
+
+      # ---- sizebench: rot guard only ---------------------------------------
+      # Its own workspace (the shared aggressive size profile must own the
+      # workspace root), so tests/rust's --workspace never compiles it and
+      # the measurement bins could silently rot. Build-only; measuring stays
+      # manual (tests/bench/measure_tables.sh).
+      - name: cargo check (tests/rust/sizebench)
+        working-directory: tests/rust/sizebench
+        run: cargo check --release
+
+      # ---- Rust interop matrix: 3 domains × 3 transport combos -----------
+      # 9 cells (grpcuds⇄grpcuds, grpcuds-server+tonic-client,
+      # tonic-server+grpcuds-client) + the scripted agent loop.
+      - name: cargo test (tests/rust)
+        working-directory: tests/rust
+        run: cargo test --workspace
+
+      # ---- C++ interop matrix (9 cells) ----------------------------------
+      # gg cells are self-checking ctest binaries; gt/tg are driven by the
+      # Rust cross-language tests below.
+      - name: cmake build + ctest (tests/cpp)
+        env:
+          NANOPB_DIR: ${{ github.workspace }}/example/nanopb
+        run: |
+          cmake -S tests/cpp -B tests/cpp/build -DNANOPB_DIR="$NANOPB_DIR"
+          cmake --build tests/cpp/build --parallel
+          ctest --test-dir tests/cpp/build --output-on-failure
+
+      # ---- Stock-gRPC conformance gate (grpc++ peer cells) ----------------
+      # grpcuds server ⇄ stock grpc++ client and the reverse, per domain —
+      # the wire-compatibility claim checked against google's own stack.
+      # The cells are optional at configure time (find_package(gRPC));
+      # --no-tests=error makes "grpc++ missing, cells skipped" a CI FAILURE
+      # instead of silently shrinking the conformance surface.
+      - name: stock gRPC conformance (ctest -R grpcpp)
+        run: |
+          ctest --test-dir tests/cpp/build -R grpcpp \
+                --no-tests=error --output-on-failure
+
+      # ---- The example (also ships at the SDK bundle root), repo mode -----
+      - name: build + run example/ble
+        working-directory: example/ble
+        run: |
+          cmake -S . -B build
+          cmake --build build --parallel
+          ./run_demo.sh build
+
+      # ---- Cross-language: Rust tonic peer ⇄ the C++ example binaries -----
+      # Env vars point at the binaries built above; the tests skip (not fail)
+      # if any is missing.
+      - name: cargo test (tests/rust cross-language)
+        working-directory: tests/rust
+        env:
+          BLE_GT_SERVER_BIN: ${{ github.workspace }}/tests/cpp/build/ble/ble-gt-server
+          BLE_TG_CLIENT_BIN: ${{ github.workspace }}/tests/cpp/build/ble/ble-tg-client
+          AGENT_GT_SERVER_BIN: ${{ github.workspace }}/tests/cpp/build/agent/agent-gt-server
+          AGENT_TG_CLIENT_BIN: ${{ github.workspace }}/tests/cpp/build/agent/agent-tg-client
+          X509_GT_SERVER_BIN: ${{ github.workspace }}/tests/cpp/build/x509/x509-gt-server
+          X509_TG_CLIENT_BIN: ${{ github.workspace }}/tests/cpp/build/x509/x509-tg-client
+        run: cargo test -p cross
+
+      # ---- Artifact sizes for visibility ---------------------------------
+      - name: Report sizes
+        run: |
+          echo "## Release artifact sizes" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ls -la rust/target/release/libgrpcuds_ffi.{a,so} \
+                 tests/cpp/build/ble/ble-gg \
+                 cpp/build/tests/echo_test 2>/dev/null \
+                 >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  # armv7 cross build in Docker (docker/armv7-cross.Dockerfile +
+  # docker/armv7-build.sh): the C ABI library with DYNAMIC nghttp2 against an
+  # ubuntu-ports armhf sysroot, the C-embed size probes, and both cross flows
+  # BLE example cross-built with the CMake toolchain file and run under
+  # qemu-arm to a passing round-trip (the cargo cross flow is exercised by
+  # the lib build itself). Catches cross-only breakage (32-bit layouts,
+  # sysroot/link wiring, the toolchain file itself).
+  armv7:
+    name: armv7 cross (Docker + qemu)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true   # example/nanopb (example/ble codegen)
+
+      - name: Build cross image
+        run: docker build -t grpcuds-armv7 -f docker/armv7-cross.Dockerfile docker/
+
+      - name: Cross build + measure + qemu smoke
+        run: |
+          mkdir -p "$RUNNER_TEMP/armv7-out"
+          docker run --rm -v "$GITHUB_WORKSPACE":/src:ro \
+              -v "$RUNNER_TEMP/armv7-out":/out grpcuds-armv7 \
+              /src/docker/armv7-build.sh
+
+      - name: Report sizes
+        run: |
+          echo '## armv7 sizes' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/armv7-out/armv7-sizes.txt" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  # Valgrind memcheck sweep (tests/bench/memcheck.sh): core wire tests, wrapper
+  # integration tests, and the bench server on a real UDS socket (incl. the
+  # 16 KB NO_COPY direct-send path), gated on definite/indirect leaks and
+  # invalid accesses. Runs on pushes to main only — it is a ~few-minute
+  # insurance pass, not part of the PR feedback loop.
+  memcheck:
+    name: Valgrind memcheck (main only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install apt deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnghttp2-dev protobuf-compiler valgrind
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            rust
+            tests/bench
+
+      - name: Run memcheck sweep
+        working-directory: tests/bench
+        run: ./memcheck.sh
+
+  # Helgrind race-detector pass for the C-ABI outbound mailbox
+  # (tests/bench/helgrind.sh): a dedicated C harness hammers grpcuds_call_write
+  # from several producer threads off the I/O thread while main drains and frees
+  # a connection mid-flight (tombstone race). All cross-thread sync is the
+  # mailbox's pthread_mutex, which helgrind models exactly, so a clean run proves
+  # the mailbox data-race free. Run on a pure-C harness, not the cargo test
+  # binaries (whose lock-free std internals helgrind would false-positive on).
+  # Pushes to main only — helgrind is slow.
+  helgrind:
+    name: Helgrind mailbox race (main only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install apt deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnghttp2-dev valgrind
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            rust
+
+      - name: Run helgrind mailbox harness
+        working-directory: tests/bench
+        run: ./helgrind.sh
+
+  # Perf-regression tracking vs tonic (tests/bench runner). Shared runners
+  # are too noisy for absolute thresholds, so the gate is the grpcuds/tonic
+  # RATIO measured in the same run on the same machine — noise hits both
+  # stacks equally. Bounds are deliberately loose (a real regression flips
+  # them; runner jitter does not). Runs on pushes to main only.
+  bench:
+    name: bench vs tonic (main only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install apt deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnghttp2-dev protobuf-compiler
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tests/bench
+
+      - name: Run the bench
+        working-directory: tests/bench
+        run: |
+          cargo build --release
+          ./target/release/runner | tee bench-out.md
+          { echo "## bench vs tonic"; cat bench-out.md; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Gate on the grpcuds/tonic ratios
+        working-directory: tests/bench
+        run: |
+          python3 - <<'EOF'
+          import re, sys
+          rows = {}
+          for line in open('bench-out.md'):
+              m = re.match(r'\| (.+?) \| ([\d.]+) \| ([\d.]+) \|', line)
+              if m:
+                  rows[m.group(1)] = (float(m.group(2)), float(m.group(3)))
+          def ratio(metric):
+              g, t = rows[metric]
+              return g / t
+          checks = [
+              # (metric, ratio bound, direction): grpcuds vs tonic.
+              ('unary p50 (us)', 2.0, 'max'),     # normally ~0.8x
+              ('stream msgs/s', 0.25, 'min'),     # normally ~0.6x
+              ('server RSS after stream (KB)', 1.0, 'max'),  # normally ~0.4x
+          ]
+          failed = False
+          for metric, bound, kind in checks:
+              r = ratio(metric)
+              ok = r <= bound if kind == 'max' else r >= bound
+              print(f"{'OK  ' if ok else 'FAIL'} {metric}: grpcuds/tonic = {r:.2f} ({kind} {bound})")
+              failed |= not ok
+          # Binary size is deterministic — absolute gate.
+          size_kb = rows['stripped binary (KB)'][0]
+          ok = size_kb <= 450
+          print(f"{'OK  ' if ok else 'FAIL'} stripped binary: {size_kb:.0f} KB (max 450)")
+          failed |= not ok
+          sys.exit(1 if failed else 0)
+          EOF

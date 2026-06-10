@@ -1,0 +1,48 @@
+[package]
+name = "grpcuds-ffi-impl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "C ABI symbol implementation (rlib). Linked into grpcuds-ffi for cdylib/staticlib production; testable on its own."
+readme = "README.md"
+keywords = ["grpc", "uds", "ffi", "http2", "no-std"]
+categories = ["network-programming", "external-ffi-bindings", "no-std"]
+# Internal impl detail of grpcuds-ffi (itself publish=false); not a standalone
+# consumable. Kept off the registry.
+publish = false
+
+[lib]
+
+[features]
+default = ["server"]
+# The server C ABI symbols (grpcuds_server_/conn_/call_).
+server = ["grpcuds-core/server"]
+# The client C ABI symbols (grpcuds_client_/response_/stream_).
+client = ["grpcuds-core/client"]
+# Forward the static-link opt-in down to grpcuds-sys.
+bundled = ["grpcuds-core/bundled"]
+# Dev-only Wireshark wire logging (see grpcuds-core).
+wirelog = ["grpcuds-core/wirelog"]
+
+[dependencies]
+grpcuds-core = { path = "../grpcuds-core", version = "0.1.0", default-features = false }
+# Outbound mailbox (server feature): pthread_mutex + eventfd + pthread_self
+# for the thread-safe off-I/O-thread write path. no_std-compatible FFI decls.
+libc = { version = "0.2", default-features = false }
+
+[dev-dependencies]
+libc = "0.2"
+grpcuds-sys = { path = "../grpcuds-sys", version = "0.1.0" }
+grpcuds = { path = "../grpcuds", version = "0.1.0" }
+
+[[test]]
+name = "client"
+required-features = ["client"]
+
+# End-to-end health Watch-push test: needs the client symbols to subscribe.
+[[test]]
+name = "health"
+required-features = ["client"]

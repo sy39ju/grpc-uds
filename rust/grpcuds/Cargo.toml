@@ -1,0 +1,90 @@
+[package]
+name = "grpcuds"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Tiny wire-compatible gRPC server over UNIX domain sockets: builder + closures (optional typed prost handlers), single I/O thread, Send+Sync streaming writers."
+readme = "README.md"
+keywords = ["grpc", "uds", "http2", "server", "streaming"]
+categories = ["network-programming"]
+
+[features]
+default = ["server"]
+# The server API (Server / ServerBuilder / Running / ServerWriter). On by
+# default, so `grpcuds` with no features is a server-only build, unchanged.
+server = []
+# A blocking client (Client::unary / server_streaming) that dials a grpcuds
+# (or any stock gRPC) server over UDS. Pulls in the nghttp2 client session.
+client = ["dep:grpcuds-sys"]
+# Build & statically link libnghttp2 from the pinned submodule (opt-in) instead
+# of dynamically linking the system one.
+bundled = ["grpcuds-core/bundled"]
+# Dev-only Wireshark wire logging (see grpcuds-core); GRPCUDS_WIRELOG=<path>
+# activates it at runtime.
+wirelog = ["grpcuds-core/wirelog"]
+# Typed handlers over prost messages: add_unary_msg / add_server_streaming_msg
+# + MessageWriter<T>. Without it the byte-level API has no codec dependency.
+prost = ["dep:prost"]
+# The standard grpc.health.v1 service (Check + Watch) as an opt-in module:
+# stock health tooling (grpc_health_probe, tonic-health, grpcurl) works
+# against a grpcuds server. Implies the typed prost surface.
+health = ["server", "prost"]
+# Server::serve_async — run the blocking I/O loop on tokio's blocking pool
+# until a shutdown future resolves (tonic's serve_with_shutdown shape).
+tokio = ["dep:tokio"]
+
+[dependencies]
+grpcuds-core = { path = "../grpcuds-core", version = "0.1.0" }
+grpcuds-sys = { path = "../grpcuds-sys", version = "0.1.0", optional = true }
+libc = "0.2"
+prost = { version = "0.14", optional = true }
+tokio = { version = "1", optional = true, default-features = false, features = ["rt", "macros"] }
+
+[dev-dependencies]
+grpcuds-sys = { path = "../grpcuds-sys", version = "0.1.0" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "signal"] }
+
+[[test]]
+name = "typed"
+required-features = ["server", "prost"]
+
+[[test]]
+name = "serve_async"
+required-features = ["server", "tokio"]
+
+[[test]]
+name = "echo"
+required-features = ["server"]
+
+[[test]]
+name = "writer_feedback"
+required-features = ["server"]
+
+[[test]]
+name = "tokio"
+required-features = ["server"]
+
+[[test]]
+name = "client"
+required-features = ["server", "client"]
+
+[[test]]
+name = "client_typed"
+required-features = ["server", "client", "prost"]
+
+[[example]]
+name = "echo_server"
+required-features = ["server"]
+
+[[example]]
+name = "echo_tokio"
+required-features = ["server", "tokio"]
+
+[package.metadata.docs.rs]
+# Document the typed (prost) and async (tokio) APIs too — but not `bundled`,
+# which would CMake-build nghttp2 inside the docs.rs sandbox for no doc gain.
+features = ["server", "client", "prost", "tokio", "health"]
+targets = ["x86_64-unknown-linux-gnu", "armv7-unknown-linux-gnueabihf"]

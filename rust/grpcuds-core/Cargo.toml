@@ -1,0 +1,40 @@
+[package]
+name = "grpcuds-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Safe no_std core: gRPC framing, UDS, stream state machine over nghttp2."
+readme = "README.md"
+keywords = ["grpc", "http2", "uds", "no-std", "embedded"]
+categories = ["network-programming", "no-std"]
+
+[lib]
+
+[features]
+default = ["server"]
+# The server-side machinery (Conn / dispatch / UDS Listener). On by default.
+server = []
+# A no_std blocking client (ClientConn) — connect + unary + server-streaming.
+client = []
+# Forward to grpcuds-sys: build & statically link libnghttp2 from the pinned
+# submodule instead of dynamically linking the system one. Opt-in.
+bundled = ["grpcuds-sys/bundled"]
+# Dev-only wire logging: append all socket bytes to a Wireshark-readable
+# pcap (synthetic TCP/IP, 1 MiB x3 rotation). Compiled in by this feature,
+# activated at runtime by GRPCUDS_WIRELOG=<path>. Never enable in release.
+wirelog = []
+
+[dependencies]
+grpcuds-sys = { path = "../grpcuds-sys", version = "0.1.0" }
+libc = { version = "0.2", default-features = false }
+
+[package.metadata.docs.rs]
+# UDS + system libnghttp2: Linux-only by design.
+targets = ["x86_64-unknown-linux-gnu", "armv7-unknown-linux-gnueabihf"]
+
+[[test]]
+name = "client_server"
+required-features = ["server", "client"]

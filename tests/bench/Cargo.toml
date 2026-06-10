@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+#
+# Head-to-head benchmark: a grpcuds server vs a tonic server, both speaking
+# the same ble.proto over UDS, both driven by the same tonic client.
+# Standalone workspace on purpose — tonic/prost stay out of the library
+# workspace's dependency graph (and out of its cargo-deny scope).
+#
+#   cargo build --release && ./target/release/runner
+#
+[package]
+name = "grpcuds-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[lib]
+
+[[bin]]
+name = "grpcuds_server"
+path = "src/bin/grpcuds_server.rs"
+
+[[bin]]
+name = "tonic_server"
+path = "src/bin/tonic_server.rs"
+
+[[bin]]
+name = "conn_hold"
+path = "src/bin/conn_hold.rs"
+
+[[bin]]
+name = "runner"
+path = "src/bin/runner.rs"
+
+[dependencies]
+grpcuds = { path = "../../rust/grpcuds", features = ["client"] }
+tonic = { version = "0.12", default-features = false, features = ["codegen", "prost", "transport"] }
+prost = "0.13"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "time", "signal"] }
+tokio-stream = "0.1"
+tower = { version = "0.5", default-features = false, features = ["util"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+
+[build-dependencies]
+tonic-build = "0.12"
+
+# One profile for both servers — identical optimization, fair size/perf.
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+
+[[bin]]
+name = "grpcuds_client_burst"
+path = "src/bin/grpcuds_client_burst.rs"
+
+[[bin]]
+name = "tonic_client_burst"
+path = "src/bin/tonic_client_burst.rs"

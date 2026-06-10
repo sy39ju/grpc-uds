@@ -1,0 +1,8 @@
+# nanopb options for agent_cpp.proto (the C++-only Agent view).
+agent.Model.name              max_size:32
+agent.ModelList.models        max_count:8
+agent.GenerateRequest.model   max_size:32
+agent.GenerateRequest.prompt  max_size:512
+agent.Token.text              max_size:64
+agent.EmbedRequest.text       max_size:512
+agent.Embedding.values        max_count:8

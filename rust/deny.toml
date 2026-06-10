@@ -1,0 +1,56 @@
+# cargo-deny configuration for the grpcuds workspace.
+#   Install:  cargo install cargo-deny
+#   Run:      cargo deny --manifest-path rust/Cargo.toml check
+#             (or `cargo deny check` from inside rust/)
+#
+# The license section is an *allow-list*: any crate whose license is not
+# explicitly permitted below fails the check. This is what stops a GPL / LGPL /
+# AGPL / other copyleft dependency from being linked in accidentally — such a
+# license simply will not be on the list, so `cargo deny check licenses` errors.
+
+[graph]
+# Check the default host target plus the cross target we actually ship to, so a
+# platform-specific copyleft dependency can't slip in via cfg().
+targets = [
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "armv7-unknown-linux-gnueabihf" },
+]
+all-features = true
+
+[licenses]
+# Only permissive, non-copyleft licenses. Adding a dependency that pulls in
+# anything outside this set (notably any GPL-family / copyleft license) makes
+# `cargo deny check` fail until it is reviewed and consciously handled.
+allow = [
+    "Apache-2.0",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unlicense",
+    "CC0-1.0",
+]
+# Require high confidence when matching a LICENSE file's text to an SPDX id;
+# anything ambiguous is treated as unknown (i.e. denied) rather than guessed.
+confidence-threshold = 0.9
+
+# Per-crate exceptions go here if a single dependency ever needs a license that
+# we do NOT want to allow workspace-wide. Empty by design: no copyleft today.
+exceptions = []
+
+[bans]
+# Deny-by-default for security-relevant footguns; tighten over time.
+multiple-versions = "warn"
+wildcards = "deny"
+
+[advisories]
+# Use the bundled advisory DB; fail on anything unmaintained or vulnerable.
+yanked = "deny"
+
+[sources]
+# Only crates.io by default. Add private/git registries here explicitly if the
+# release ever needs them, so an unexpected source is flagged.
+unknown-registry = "deny"
+unknown-git = "deny"

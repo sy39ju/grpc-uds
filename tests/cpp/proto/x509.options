@@ -1,0 +1,22 @@
+# nanopb options for x509.proto. Pins variable-length fields to fixed-size
+# buffers for the C++ (nanopb) examples. The C++ x509 example is a deterministic
+# mock (no cert stack), so canned PEM/expiry values stay well within these caps.
+
+x509.GenerateSelfSignedRequest.common_name        max_size:64
+x509.GenerateSelfSignedRequest.subject_alt_names  max_size:64   max_count:4
+
+x509.KeyPairPem.cert_pem        max_size:2048
+x509.KeyPairPem.key_pem         max_size:2048
+
+x509.PemCert.pem                max_size:2048
+
+x509.CertInfo.subject           max_size:128
+x509.CertInfo.issuer            max_size:128
+x509.CertInfo.serial_hex        max_size:64
+x509.CertInfo.subject_alt_names max_size:64   max_count:4
+
+x509.FingerprintRequest.pem     max_size:2048
+x509.FingerprintReply.hex       max_size:128
+
+x509.CheckExpiryRequest.pems    max_size:2048 max_count:4
+x509.ExpiryStatus.subject       max_size:128

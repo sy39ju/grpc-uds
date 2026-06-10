@@ -1,0 +1,10 @@
+# nanopb bounds: pin variable-length fields to fixed buffers so handlers use
+# plain struct fields. Picking these caps is part of designing the contract
+# (see README.md "Caveats" — nanopb fields do not grow dynamically).
+ble.InitReply.adapter                 max_size:16
+ble.ScanResult.mac                    max_size:18
+ble.ScanResult.name                   max_size:24
+ble.ScanResult.adv_data               max_size:31
+ble.ReadCharacteristicRequest.mac     max_size:18
+ble.ReadCharacteristicRequest.uuid    max_size:37
+ble.ReadCharacteristicReply.value     max_size:32

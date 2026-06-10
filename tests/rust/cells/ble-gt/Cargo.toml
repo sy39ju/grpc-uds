@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+[package]
+name = "ble-gt"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "BLE interop cell: grpcuds server + tonic (stock gRPC) client over UDS."
+
+[dependencies]
+ble-domain.workspace = true
+uds-harness.workspace = true
+tonic.workspace = true
+tokio.workspace = true

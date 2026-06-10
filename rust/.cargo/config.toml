@@ -1,0 +1,38 @@
+# grpcuds cargo config.
+#
+# Host (x86_64) builds need nothing here. The block below is only consulted
+# when you build with `--target armv7-unknown-linux-gnueabihf` (CC-1 size
+# measurement). The toolchain path and sysroot are environment-specific, so
+# fill the two placeholders for your ARM cross setup.
+#
+# One-time:
+#   rustup target add armv7-unknown-linux-gnueabihf
+#
+# Build + measure:
+#   export SYSROOT=/abs/path/to/armv7-sysroot   # drives bindgen (build.rs)
+#   cargo build --release --target armv7-unknown-linux-gnueabihf -p grpcuds-ffi
+#   arm-linux-gnueabihf-strip -s \
+#     ../<...>/target/armv7-unknown-linux-gnueabihf/release/libgrpcuds_ffi.a
+#   size -A <stripped .a>     # or link a probe binary and measure .text delta
+#
+# SYSROOT (above) is read by grpcuds-sys/build.rs for the bindgen clang
+# --sysroot. The same path is also needed at link time for the staticlib's
+# transitive references — pass it via link-arg below (or the target-scoped
+# CARGO_TARGET_..._RUSTFLAGS env; see the trap note at the bottom).
+
+[target.armv7-unknown-linux-gnueabihf]
+# Your ARM cross C compiler, used as the linker driver. Common names:
+#   arm-linux-gnueabihf-gcc  (Linaro/GNU)  |  clang --target=armv7-...
+linker = "arm-linux-gnueabihf-gcc"
+
+# Sysroot for linking. Either set the absolute path here:
+#   rustflags = ["-C", "link-arg=--sysroot=/abs/path/to/armv7-sysroot"]
+# or pass it at build time without editing this file — use the TARGET-SCOPED
+# env var, which is safe to leave exported:
+#   export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_RUSTFLAGS="-C link-arg=--sysroot=$SYSROOT"
+#   cargo build --target armv7-... -p grpcuds-ffi
+#
+# TRAP: do NOT `export RUSTFLAGS=...` globally. Cargo applies RUSTFLAGS to
+# HOST builds too whenever no --target is given (build scripts, the protoc
+# plugin), and the arm sysroot then breaks their x86 links with
+# "incompatible with elf32-littlearm" errors.

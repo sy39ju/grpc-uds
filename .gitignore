@@ -1,0 +1,12 @@
+# Packaged release bundles from scripts/package.sh
+/dist/
+
+# Root CMake build dir (cmake -S . -B build)
+/build/
+
+# Generated Doxygen HTML (run `doxygen Doxyfile` to regenerate)
+/docs/doxygen/
+/tests/bench/target/
+# Standalone example build dirs
+example/ble/build/
+example/c/build/

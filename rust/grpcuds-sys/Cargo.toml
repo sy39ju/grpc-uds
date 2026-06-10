@@ -1,0 +1,68 @@
+[package]
+name = "grpcuds-sys"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Raw FFI bindings to system libnghttp2 (dynamically linked)."
+readme = "README.md"
+keywords = ["nghttp2", "http2", "ffi", "bindgen", "grpc"]
+categories = ["external-ffi-bindings", "network-programming", "no-std"]
+links = "nghttp2"
+# Explicit include list: ships the bindgen inputs plus ONLY the parts of the
+# in-crate nghttp2 submodule that the `bundled` CMake build needs (lib/, cmake
+# modules, top-level CMakeLists) — not its docs/tests/apps. Keeps the package
+# small while making `bundled` functional from a registry download.
+include = [
+    "/src/**",
+    "/build.rs",
+    "/wrapper.h",
+    "/bindings/**",
+    "/README.md",
+    "/LICENSE-*",
+    "/vendor/nghttp2-src/COPYING",
+    "/vendor/nghttp2-src/CMakeLists.txt",
+    "/vendor/nghttp2-src/CMakeOptions.txt",
+    "/vendor/nghttp2-src/cmakeconfig.h.in",
+    "/vendor/nghttp2-src/cmake/**",
+    "/vendor/nghttp2-src/lib/**",
+    # The top-level CMakeLists unconditionally configure_file's these and
+    # add_subdirectory's every component dir (each bails out under
+    # ENABLE_LIB_ONLY, but its CMakeLists.txt must exist):
+    "/vendor/nghttp2-src/README.rst",
+    "/vendor/nghttp2-src/doc/*.in",
+    "/vendor/nghttp2-src/integration-tests/*.in",
+    "/vendor/nghttp2-src/integration-tests/CMakeLists.txt",
+    "/vendor/nghttp2-src/third-party/CMakeLists.txt",
+    "/vendor/nghttp2-src/src/CMakeLists.txt",
+    "/vendor/nghttp2-src/src/includes/**",
+    "/vendor/nghttp2-src/examples/CMakeLists.txt",
+    "/vendor/nghttp2-src/tests/CMakeLists.txt",
+    "/vendor/nghttp2-src/contrib/CMakeLists.txt",
+    "/vendor/nghttp2-src/contrib/*.in",
+    "/vendor/nghttp2-src/script/CMakeLists.txt",
+    "/vendor/nghttp2-src/script/fetch-ocsp-response",
+    "/vendor/nghttp2-src/bpf/CMakeLists.txt",
+]
+
+[lib]
+doctest = false
+
+[features]
+# Default: dynamically link the system libnghttp2 (CLAUDE.md invariant).
+#
+# `bundled`: instead build libnghttp2 from the pinned `vendor/nghttp2-src`
+# submodule (v1.59.0) with CMake and statically link the resulting archive.
+# Opt-in only — it trades the ~100-180KB static-bundle cost for a self-contained
+# binary that needs no system libnghttp2 at runtime.
+bundled = ["dep:cmake"]
+
+[build-dependencies]
+bindgen = { version = "0.69", default-features = false, features = ["runtime"] }
+cmake = { version = "0.1", optional = true }
+
+[package.metadata.docs.rs]
+# UDS + system libnghttp2: Linux-only by design.
+targets = ["x86_64-unknown-linux-gnu", "armv7-unknown-linux-gnueabihf"]

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+[package]
+name = "ble-gg"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "BLE interop cell: grpcuds server + grpcuds client over UDS."
+
+[dependencies]
+ble-domain.workspace = true
+grpcuds = { workspace = true, features = ["client", "prost"] }
+uds-harness.workspace = true

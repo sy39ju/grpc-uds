@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+[package]
+name = "cross"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "Cross-language interop tests: a Rust tonic peer (in-process) drives — or is driven by — the C++ grpcuds example binaries. Skips when the C++ binaries aren't built."
+
+[lib]
+
+[dependencies]
+uds-harness.workspace = true
+
+[dev-dependencies]
+grpcuds = { workspace = true, features = ["health"] }
+tonic-health.workspace = true
+ble-domain.workspace = true
+agent-domain.workspace = true
+x509-domain.workspace = true
+tokio.workspace = true
+tonic.workspace = true
