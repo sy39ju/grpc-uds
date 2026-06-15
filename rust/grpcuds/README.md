@@ -4,7 +4,7 @@
 A tiny, wire-compatible **gRPC server over UNIX domain sockets**. Stock gRPC
 clients (tonic, grpc-cpp, grpc-java, …) connect unchanged; the server side is
 a `no_std`-core stack over the system `libnghttp2` that fits embedded size
-budgets — measured against tonic over the same socket: **4.2× smaller stripped
+budgets — measured against tonic over the same socket: **~3× smaller stripped
 binary, a 4-crate dependency closure, ~2× less resident memory**, unary
 latency parity (numbers and harness in the
 [repository README](https://github.com/sy39ju/grpc-uds)).
