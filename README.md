@@ -188,6 +188,9 @@ powered by Anthropic's **Claude Fable 5** (`claude-fable-5`) — design,
 implementation, tests, benchmarks, and these docs grew out of a long
 human–AI pair-programming session. A human reviewed and owns every line.
 
+What that session cost — total tokens, per-model breakdown, dollars, time, and
+the per-turn distributions — is reported in **[BUDGET.md](BUDGET.md)**.
+
 ## License
 
 Dual-licensed under **MIT OR Apache-2.0**, at your option — see
