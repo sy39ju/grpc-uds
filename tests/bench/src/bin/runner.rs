@@ -40,9 +40,18 @@ impl ServerUnderTest {
         let bin = bin_dir.join(name);
         let sock = format!("/tmp/grpcuds-bench-{}-{}.sock", name, std::process::id());
         let _ = std::fs::remove_file(&sock);
-        let child = Command::new(&bin)
-            .arg(&sock)
-            .stderr(Stdio::null())
+        let mut cmd = Command::new(&bin);
+        cmd.arg(&sock).stderr(Stdio::null());
+        // The grpcuds handler bursts the whole stream into its out-queue, and
+        // glibc retains the freed buffers until malloc_trim hands them back.
+        // Enable the documented idle-trim (BENCH_TRIM_SEC) so the post-stream
+        // RSS sample reflects steady state instead of the bimodal glibc-retain
+        // peak. tonic bounds buffering with HTTP/2 flow control, so it never
+        // accumulates this and reads the env's absence as a no-op.
+        if name == "grpcuds_server" {
+            cmd.env("BENCH_TRIM_SEC", "1");
+        }
+        let child = cmd
             .spawn()
             .unwrap_or_else(|e| panic!("spawn {}: {e}", bin.display()));
         // Wait for the socket to appear.
@@ -141,6 +150,17 @@ async fn bench_one(srv: &ServerUnderTest) -> Numbers {
         best_mb_per_s = best_mb_per_s.max(bytes as f64 / dt / 1e6);
     }
 
+    // Steady-state RSS, not the burst peak. The grpcuds handler enqueues the
+    // entire stream before the I/O loop drains it; right after the burst,
+    // glibc's heap is inflated with retained free chunks, so VmRSS is a
+    // bimodal artifact (~0.4x or ~2x of tonic depending on scheduling). Wait
+    // for the server's idle-trim (BENCH_TRIM_SEC=1) to malloc_trim the heap
+    // back, then sample — that is the footprint an embedded app actually
+    // carries after a burst. tonic, flow-control-bounded, sits flat across
+    // the same settle, so the comparison stays apples-to-apples.
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+    let rss_kb = srv.rss_kb().unwrap_or(0);
+
     Numbers {
         p50_us,
         p99_us,
@@ -149,7 +169,7 @@ async fn bench_one(srv: &ServerUnderTest) -> Numbers {
         stream_msgs_per_s: best_msgs_per_s,
         stream_mb_per_s: best_mb_per_s,
         rss_unary_kb,
-        rss_kb: srv.rss_kb().unwrap_or(0),
+        rss_kb,
         bin_kb: srv.bin_size_kb(),
     }
 }

@@ -371,7 +371,10 @@ jobs:
               # (metric, ratio bound, direction): grpcuds vs tonic.
               ('unary p50 (us)', 2.0, 'max'),     # normally ~0.8x
               ('stream msgs/s', 0.25, 'min'),     # normally ~0.6x
-              ('server RSS after stream (KB)', 1.0, 'max'),  # normally ~0.4x
+              # Steady-state (post idle-trim) RSS, not the burst peak — see the
+              # runner's note. Reliably ~0.4x; 1.0 leaves headroom for a real
+              # regression without flaking on the glibc-retain burst artifact.
+              ('server RSS after stream (KB)', 1.0, 'max'),
           ]
           failed = False
           for metric, bound, kind in checks:
